@@ -1,3 +1,5 @@
+ttn-config.h
+
 # Object files
 *.o
 *.ko
