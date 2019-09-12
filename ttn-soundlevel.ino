@@ -1,20 +1,18 @@
-#include <rn2xx3.h>
-#include <SoftwareSerial.h>
+#include <TheThingsNetwork.h>
 
 /* Copy and fill in the lines from TTN Console -> Devices -> Overview tab -> "EXAMPLE CODE"
 .. And add this to a file in the same folder as this sketch: */
-#include "ttn-config.h"
+const char *appEui = "70B3D57EF000376E";
+const char *appKey = "283B4C0C4755745ABD53BC74A63D3E69";
+const char *nwkSKey = "C8B06AD9BF825C6B484213748533D298";
 
-const char *devAddr = config_devAddr;
-const char *nwkSKey = config_nwkSKey;
-const char *appSKey = config_appSKey;
+#include <SoftwareSerial.h>
 
-SoftwareSerial mySerial(7, 8); // RX, TX
-#define RST  2
-
+//define AnalogPin for sensor
 // Configure sound sensor
 int sound_din=2;
 int sound_ain=A0;
+int light_pin=13;
 int ad_value;
 
 // Configure transmission cycle
@@ -22,10 +20,24 @@ const uint16_t cycle_frequency = 200; // how often do we wish to measure?
 const uint16_t cycle_length = 30000; // how often do we transmit?
 const uint16_t cycle_over = cycle_length / cycle_frequency;
 
-rn2xx3 myLora(mySerial);
+SoftwareSerial Serial1(7, 8); // RX, TX
+#define RST  2
+#define loraSerial Serial1
+#define debugSerial Serial
 
-// Setup routine runs once when you press reset
-void setup() {
+#define freqPlan TTN_FP_EU868
+
+TheThingsNetwork ttn(loraSerial, debugSerial, freqPlan);
+
+void setup()
+{
+  loraSerial.begin(57600);
+  debugSerial.begin(9600);
+
+  // Wait a maximum of 10s for Serial Monitor
+  while (!debugSerial && millis() < 10000)
+    ;
+
   pinMode(13, OUTPUT);
   led_on();
 
@@ -33,56 +45,27 @@ void setup() {
   pinMode(sound_din,INPUT);
   pinMode(sound_ain,INPUT);
 
-  // Open serial communications and wait for port to open:
-  Serial.begin(9600);
-  mySerial.begin(9600);
-  Serial.println("Startup");
+  debugSerial.println("-- STATUS");
+  ttn.showStatus();
 
-  // Reset rn2483
-  pinMode(RST, OUTPUT);
-  digitalWrite(RST, HIGH);
-  digitalWrite(RST, LOW);
-  delay(500);
-  digitalWrite(RST, HIGH);
+  debugSerial.println("-- JOIN");
+  ttn.join(appEui, appKey);
 
-  // Initialise the rn2483 module
-  myLora.autobaud();
+  ttn.showStatus();
+  debugSerial.println("Setup for The Things Network complete");
 
-  Serial.println("When using OTAA, register this DevEUI: ");
-  Serial.println(myLora.hweui());
-  Serial.print("RN2483 version number: ");
-  Serial.println(myLora.sysver());
-
-  myLora.initABP(devAddr, appSKey, nwkSKey);
-
-  led_off();
-  delay(2000);
-
-  Serial.println("Starting to transmit at cycles of (seconds):");
-  Serial.println(cycle_length / 1000);
+  debugSerial.println("Transmitting Sound level ... ");
 }
 
-
-// transmit the average values to TTN
-void sendLora(uint16_t value) {
-  led_on();
-  byte payload[2];
-  payload[0] = highByte(value);
-  payload[1] = lowByte(value);
-  Serial.println("Transmitting:");
-  Serial.println(value);
-  myLora.txBytes(payload, sizeof(payload));
-  led_off();
-}
 
 int cycle = 0;
 int loudCount = 0;
 float loudAvg = 0;
 
-// the loop routine runs over and over again forever:
-void loop() {
+void loop()
+{
 
-  ad_value=analogRead(sound_ain);
+  uint16_t ad_value = analogRead(sound_ain);
 
   if (digitalRead(sound_din) == LOW) {
     loudCount++;
@@ -92,25 +75,41 @@ void loop() {
 
   cycle++;
   if (cycle >= cycle_over) {
+  
+    // Split word (16 bits) into 2 bytes of 8
+    byte payload[2];
+    payload[0] = highByte((uint16_t)loudAvg);
+    payload[1] = lowByte((uint16_t)loudAvg);
+  
+    led_on();
+  
+    debugSerial.println(loudAvg);
+  
+    ttn.sendBytes(payload, sizeof(payload));
+  
+    led_off();
+
+    
     //Serial.println(ad_value);
     //Serial.println(loudAvg);
     //Serial.println(loudCount);
     //Serial.println("---");
-    sendLora((uint16_t)loudAvg);
     cycle = 0;
     loudCount = 0;
     loudAvg = 0;
   }
   
-  delay(cycle_frequency);
+  delay(2000);
 }
+
 
 void led_on()
 {
-  digitalWrite(13, 1);
+  digitalWrite(light_pin, 1);
 }
 
 void led_off()
 {
-  digitalWrite(13, 0);
+  digitalWrite(light_pin, 0);
 }
+
