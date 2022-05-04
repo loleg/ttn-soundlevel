@@ -2,15 +2,16 @@
 
 /* Copy and fill in the lines from TTN Console -> Devices -> Overview tab -> "EXAMPLE CODE"
 .. And add this to a file in the same folder as this sketch: */
-const char *appEui = "70B3D57EF000376E";
-const char *appKey = "283B4C0C4755745ABD53BC74A63D3E69";
-const char *nwkSKey = "C8B06AD9BF825C6B484213748533D298";
+const char *appEui = "70B3D57ED00503BC";
+const char *appKey = "EDF58A46E1D792FA6406FE8ED44291D3";
+//const char *nwkSKey = "...not used"; // if not OTAA 
+// devEUI = 0004A30B001BF88B
 
 #include <SoftwareSerial.h>
 
 //define AnalogPin for sensor
 // Configure sound sensor
-int sound_din=2;
+int sound_din=9;
 int sound_ain=A0;
 int light_pin=13;
 int ad_value;
@@ -20,7 +21,7 @@ const uint16_t cycle_frequency = 200; // how often do we wish to measure?
 const uint16_t cycle_length = 30000; // how often do we transmit?
 const uint16_t cycle_over = cycle_length / cycle_frequency;
 
-SoftwareSerial Serial1(7, 8); // RX, TX
+SoftwareSerial Serial1(4, 5); // RX, TX
 #define RST  2
 #define loraSerial Serial1
 #define debugSerial Serial
@@ -32,7 +33,7 @@ TheThingsNetwork ttn(loraSerial, debugSerial, freqPlan);
 void setup()
 {
   loraSerial.begin(57600);
-  debugSerial.begin(9600);
+  debugSerial.begin(57600);
 
   // Wait a maximum of 10s for Serial Monitor
   while (!debugSerial && millis() < 10000)
@@ -44,6 +45,12 @@ void setup()
   // Activate sound sensor
   pinMode(sound_din,INPUT);
   pinMode(sound_ain,INPUT);
+
+  //reset RN2xx3
+  pinMode(RST, OUTPUT);
+  digitalWrite(RST, LOW);
+  delay(100);
+  digitalWrite(RST, HIGH);
 
   debugSerial.println("-- STATUS");
   ttn.showStatus();
