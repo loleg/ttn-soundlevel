@@ -58,8 +58,8 @@ void setup()
   debugSerial.println("-- JOIN");
   ttn.join(appEui, appKey);
 
-  ttn.showStatus();
   debugSerial.println("Setup for The Things Network complete");
+  ttn.showStatus();
 
   debugSerial.println("Transmitting Sound level ... ");
 }
@@ -106,7 +106,7 @@ void loop()
     loudAvg = 0;
   }
   
-  delay(2000);
+  delay(cycle_frequency);
 }
 
 
